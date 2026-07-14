@@ -1,0 +1,121 @@
+name: Java CI with Maven and Performance Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    # Sobe o serviço do PostgreSQL temporário no container do GitHub
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: sistema_agendamento
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        # Aguarda o Postgres estar pronto antes de iniciar a pipeline
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Compilar e Executar Testes de Integração (JUnit)
+        env:
+          # Passa as credenciais do banco do service para a aplicação em teste
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/sistema_agendamento
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: postgres
+        run: mvn clean test
+
+      - name: Fazer o Upload do JAR compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
+
+  performance-test:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: sistema_agendamento
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Baixar JAR compilado
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target/
+
+      - name: Instalar o k6 (Ferramenta de Teste de Carga)
+        run: |
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17DEC7239F79
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Iniciar a Aplicação em segundo plano
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/sistema_agendamento
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: postgres
+        run: |
+          java -jar target/*.jar > app.log 2>&1 &
+          echo "Aguardando inicialização da API..."
+          sleep 15 # Tempo necessário para o Spring Boot subir completamente
+
+      - name: Cadastrar dados iniciais para o teste de carga
+        run: |
+          # Cadastra um estabelecimento de teste id=1
+          curl -X POST http://localhost:8080/estabelecimentos \
+            -H "Content-Type: application/json" \
+            -d '{"nome":"Salao Teste Carga","endereco":"Rua Teste","servicos":"Corte","horarios":"08-18h"}'
+          
+          # Cadastra um profissional de teste id=1
+          curl -X POST http://localhost:8080/profissionais \
+            -H "Content-Type: application/json" \
+            -d '{"nome":"Prof Carga","especialidade":"Corte","disponibilidade":"Todo dia","tarifa":50.0,"estabelecimento":{"id":1}}'
+
+      - name: Executar Teste de Carga (k6)
+        run: k6 run k6/load-test.js

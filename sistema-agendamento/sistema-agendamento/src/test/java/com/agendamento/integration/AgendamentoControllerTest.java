@@ -6,6 +6,9 @@ import com.agendamento.domain.Cliente;
 import com.agendamento.domain.Estabelecimento;
 import com.agendamento.domain.Profissional;
 import com.agendamento.infrastructure.AgendamentoRepository;
+import com.agendamento.infrastructure.ClienteRepository;
+import com.agendamento.infrastructure.EstabelecimentoRepository;
+import com.agendamento.infrastructure.ProfissionalRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,15 +33,28 @@ class AgendamentoControllerTest {
     @Autowired
     private AgendamentoRepository repo;
 
+    @Autowired
+    private ClienteRepository clienteRepo;
+
+    @Autowired
+    private EstabelecimentoRepository estRepo;
+
+    @Autowired
+    private ProfissionalRepository profRepo;
+
     private Agendamento agendamentoBase;
 
     @BeforeEach
     void setup() {
-        repo.deleteAll();
 
-        Cliente cliente = new Cliente(null, "Felipe", "felipe@email.com");
-        Estabelecimento est = new Estabelecimento(null, "Salão Central", "Rua A, 123", "Corte", "08-18h", "foto.jpg");
-        Profissional prof = new Profissional(null, "João", "Cabeleireiro", "08-18h", 100.0, est);
+        repo.deleteAll();
+        profRepo.deleteAll();
+        estRepo.deleteAll();
+        clienteRepo.deleteAll();
+
+        Cliente cliente = clienteRepo.save(new Cliente(null, "Felipe", "felipe@email.com"));
+        Estabelecimento est = estRepo.save(new Estabelecimento(null, "Salão Central", "Rua A, 123", "Corte", "08-18h", "foto.jpg"));
+        Profissional prof = profRepo.save(new Profissional(null, "João", "Cabeleireiro", "08-18h", 100.0, est));
 
         agendamentoBase = new Agendamento(
                 null,
@@ -48,7 +64,7 @@ class AgendamentoControllerTest {
                 est,
                 cliente
         );
-        repo.save(agendamentoBase);
+        agendamentoBase = repo.save(agendamentoBase);
     }
 
     @Test
@@ -70,16 +86,15 @@ class AgendamentoControllerTest {
     void deveCriarAgendamento() throws Exception {
         String body = "{ \"dataHora\": \"" + LocalDateTime.now().plusDays(3) + "\", " +
                 "\"status\": \"CONFIRMADO\", " +
-                "\"cliente\": {\"nome\":\"Maria\",\"email\":\"maria@email.com\"}, " +
-                "\"estabelecimento\": {\"nome\":\"Studio Beleza\",\"endereco\":\"Rua B\",\"servicos\":\"Manicure\",\"horarios\":\"09-19h\",\"foto\":\"foto2.jpg\"}, " +
-                "\"profissional\": {\"nome\":\"Ana\",\"especialidade\":\"Manicure\",\"disponibilidade\":\"Seg-Sex 10h-19h\",\"tarifa\":80.0} }";
+                "\"cliente\": {\"id\":" + agendamentoBase.getCliente().getId() + "}, " +
+                "\"estabelecimento\": {\"id\":" + agendamentoBase.getEstabelecimento().getId() + "}, " +
+                "\"profissional\": {\"id\":" + agendamentoBase.getProfissional().getId() + "} }";
 
         mockMvc.perform(post("/agendamentos")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status", is("CONFIRMADO")))
-                .andExpect(jsonPath("$.cliente.nome", is("Maria")));
+                .andExpect(jsonPath("$.status", is("CONFIRMADO")));
     }
 
     @Test

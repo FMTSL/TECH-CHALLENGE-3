@@ -56,7 +56,7 @@ public class AgendamentoSteps {
         tokenCliente = login(emailCliente, senhaCliente);
     }
 
-    @Dado("que existe um estabelecimento {string} com um profissional {string} e um servico {string} de R\\$ {double}")
+    @Dado("que existe um estabelecimento {string} com um profissional {string} e um servico {string} de R$ {double}")
     public void queExisteEstabelecimentoComProfissionalEServico(String nomeEstab, String nomeProf, String nomeServico, double preco) {
         String emailDono = sufixo + ".dono@email.com";
         registrar("Dono BDD", emailDono, "senha123", "ESTABELECIMENTO");

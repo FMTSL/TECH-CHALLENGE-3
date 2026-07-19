@@ -21,9 +21,6 @@
         <module name="ParameterNumber">
             <property name="max" value="8"/>
         </module>
-        <module name="LineLength">
-            <property name="max" value="140"/>
-        </module>
         <module name="NeedBraces"/>
         <module name="OneStatementPerLine"/>
         <module name="FinalLocalVariable">
@@ -31,6 +28,9 @@
         </module>
     </module>
 
+    <module name="LineLength">
+        <property name="max" value="140"/>
+    </module>
     <module name="FileLength">
         <property name="max" value="400"/>
     </module>

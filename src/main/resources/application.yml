@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: booking-beleza
+  profiles:
+    active: local
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  mail:
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:troque-este-segredo-em-producao-min-32-caracteres}
+      expiracao-ms: 86400000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

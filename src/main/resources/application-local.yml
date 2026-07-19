@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/booking_beleza
+    username: booking
+    password: booking
+  mail:
+    host: localhost
+    port: 1025

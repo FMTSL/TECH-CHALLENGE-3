@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: booking_beleza
+          POSTGRES_USER: booking
+          POSTGRES_PASSWORD: booking
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U booking"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build
+        run: mvn -B compile
+
+      - name: Testes unitarios (exclui *IT)
+        run: mvn -B test
+
+      - name: Testes de integracao (Testcontainers)
+        run: mvn -B verify
+
+      - name: Publicar relatorio de cobertura (JaCoCo)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
+
+      - name: Docker build check
+        run: docker build -t booking-beleza:ci .

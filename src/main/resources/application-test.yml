@@ -1,0 +1,13 @@
+spring:
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  mail:
+    host: localhost
+    port: 3025
+app:
+  security:
+    jwt:
+      secret: segredo-de-teste-com-32-caracteres-ou-mais

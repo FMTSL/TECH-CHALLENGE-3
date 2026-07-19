@@ -1,0 +1,11 @@
+<FindBugsFilter>
+    <!-- Lombok @Builder.Default gera acesso a campo mutavel que o SpotBugs confunde com exposicao interna -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+        <Package name="br.com.fiap.agendamento.domain.model"/>
+    </Match>
+    <!-- Records de DTO na borda da API: falso positivo de exposicao de representacao interna -->
+    <Match>
+        <Package name="br.com.fiap.agendamento.application.dto"/>
+    </Match>
+</FindBugsFilter>

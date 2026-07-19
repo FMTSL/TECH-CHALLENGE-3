@@ -1,0 +1,33 @@
+# Deploy gratuito via Render (https://render.com) - opcao gratuita pedida no enunciado.
+# Uso: conecte o repositorio no dashboard do Render e ele detecta este arquivo automaticamente
+# (Blueprint), ou rode `render blueprint launch` com o Render CLI.
+services:
+  - type: web
+    name: booking-beleza
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: docker
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: booking-beleza-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: booking-beleza-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: booking-beleza-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+
+databases:
+  - name: booking-beleza-db
+    plan: free
+    databaseName: booking_beleza
+    user: booking

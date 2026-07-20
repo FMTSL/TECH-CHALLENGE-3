@@ -19,7 +19,7 @@ import java.util.Date;
  * tecnologia por tras da autenticacao e JWT.
  */
 @Component
-public class JwtService implements TokenProvider {
+public final class JwtService implements TokenProvider {
 
     private final SecretKey chave;
     private final long expiracaoMs;

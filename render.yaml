@@ -11,10 +11,20 @@ services:
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: docker
-      - key: SPRING_DATASOURCE_URL
+      - key: DB_HOST
         fromDatabase:
           name: booking-beleza-db
-          property: connectionString
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: booking-beleza-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: booking-beleza-db
+          property: database
+      - key: SPRING_DATASOURCE_URL
+        value: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
       - key: SPRING_DATASOURCE_USERNAME
         fromDatabase:
           name: booking-beleza-db

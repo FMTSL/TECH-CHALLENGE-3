@@ -4,33 +4,34 @@
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "512",
   "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
   "containerDefinitions": [
     {
       "name": "booking-beleza-app",
-      "image": "<SEU_REGISTRY>/booking-beleza:latest",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/booking-beleza:latest",
       "portMappings": [{ "containerPort": 8080, "protocol": "tcp" }],
       "environment": [
-        { "name": "SPRING_PROFILES_ACTIVE", "value": "docker" }
-      ],
-      "secrets": [
-        { "name": "SPRING_DATASOURCE_URL", "valueFrom": "arn:aws:ssm:REGION:ACCOUNT_ID:parameter/booking-beleza/db-url" },
-        { "name": "SPRING_DATASOURCE_USERNAME", "valueFrom": "arn:aws:ssm:REGION:ACCOUNT_ID:parameter/booking-beleza/db-user" },
-        { "name": "SPRING_DATASOURCE_PASSWORD", "valueFrom": "arn:aws:ssm:REGION:ACCOUNT_ID:parameter/booking-beleza/db-password" },
-        { "name": "JWT_SECRET", "valueFrom": "arn:aws:ssm:REGION:ACCOUNT_ID:parameter/booking-beleza/jwt-secret" }
+        { "name": "SPRING_PROFILES_ACTIVE", "value": "docker" },
+        { "name": "SPRING_DATASOURCE_URL", "value": "jdbc:postgresql://RDS_ENDPOINT:5432/booking_beleza" },
+        { "name": "SPRING_DATASOURCE_USERNAME", "value": "booking" },
+        { "name": "SPRING_DATASOURCE_PASSWORD", "value": "SENHA_DO_RDS" },
+        { "name": "JWT_SECRET", "value": "SEGREDO_COM_NO_MINIMO_32_CARACTERES" }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/booking-beleza",
-          "awslogs-region": "us-east-1",
-          "awslogs-stream-prefix": "app"
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "app",
+          "awslogs-create-group": "true"
         }
       },
       "healthCheck": {
-        "command": ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"],
+        "command": ["CMD-SHELL", "wget -q -O- http://localhost:8080/actuator/health || exit 1"],
         "interval": 30,
         "timeout": 5,
-        "retries": 3
+        "retries": 5,
+        "startPeriod": 60
       }
     }
   ]

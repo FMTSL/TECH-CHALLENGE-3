@@ -1,0 +1,1090 @@
+{
+  "info": {
+    "name": "Booking Beleza - Tech Challenge Fase 3",
+    "description": "Colecao completa de testes manuais da API. Rode os itens NA ORDEM (de cima para baixo dentro de cada pasta, e pasta por pasta) - cada requisicao alimenta a proxima com token/IDs automaticamente via scripts.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "emailCliente",
+      "value": ""
+    },
+    {
+      "key": "emailDono",
+      "value": ""
+    },
+    {
+      "key": "tokenCliente",
+      "value": ""
+    },
+    {
+      "key": "tokenDono",
+      "value": ""
+    },
+    {
+      "key": "estabelecimentoId",
+      "value": ""
+    },
+    {
+      "key": "profissionalId",
+      "value": ""
+    },
+    {
+      "key": "servicoId",
+      "value": ""
+    },
+    {
+      "key": "agendamentoId",
+      "value": ""
+    },
+    {
+      "key": "dataFutura",
+      "value": ""
+    },
+    {
+      "key": "diaSemanaFutura",
+      "value": ""
+    },
+    {
+      "key": "dataHoraFutura",
+      "value": ""
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Calcula uma data 7 dias a frente (sempre no futuro, nao importa quando voce rodar a colecao)",
+          "const dias = ['DOMINGO','SEGUNDA','TERCA','QUARTA','QUINTA','SEXTA','SABADO'];",
+          "const d = new Date();",
+          "d.setDate(d.getDate() + 7);",
+          "const yyyy = d.getFullYear();",
+          "const mm = String(d.getMonth()+1).padStart(2,'0');",
+          "const dd = String(d.getDate()).padStart(2,'0');",
+          "pm.collectionVariables.set('dataFutura', `${yyyy}-${mm}-${dd}`);",
+          "pm.collectionVariables.set('diaSemanaFutura', dias[d.getDay()]);",
+          "pm.collectionVariables.set('dataHoraFutura', `${yyyy}-${mm}-${dd}T09:00:00`);"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Autenticacao",
+      "item": [
+        {
+          "name": "1.1 Registrar Cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registrar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "registrar"
+              ]
+            },
+            "description": "Cria o usuario que vai AGENDAR os servicos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Cliente Teste\",\n  \"email\": \"{{emailCliente}}\",\n  \"senha\": \"senha123\",\n  \"role\": \"CLIENTE\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('emailCliente', 'cliente_' + Date.now() + '@teste.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Login Cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Autentica o cliente e guarda o token em {{tokenCliente}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailCliente}}\",\n  \"senha\": \"senha123\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('tokenCliente', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 Registrar Dono do Estabelecimento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/registrar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "registrar"
+              ]
+            },
+            "description": "Cria o usuario que vai CADASTRAR o estabelecimento.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Dono do Salao\",\n  \"email\": \"{{emailDono}}\",\n  \"senha\": \"senha123\",\n  \"role\": \"ESTABELECIMENTO\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('emailDono', 'dono_' + Date.now() + '@teste.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 Login Dono",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Autentica o dono e guarda o token em {{tokenDono}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailDono}}\",\n  \"senha\": \"senha123\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('tokenDono', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Cadastro (Estabelecimento, Profissional, Servico)",
+      "item": [
+        {
+          "name": "2.1 Cadastrar Estabelecimento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/estabelecimentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "estabelecimentos"
+              ]
+            },
+            "description": "Precisa do token do DONO. Guarda o id em {{estabelecimentoId}}.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenDono}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Salao Bela\",\n  \"endereco\": \"Rua das Flores, 123\",\n  \"cidade\": \"Sao Paulo\",\n  \"horarioFuncionamento\": \"09h-19h\",\n  \"fotos\": [\n    \"https://exemplo.com/foto1.jpg\"\n  ]\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('estabelecimentoId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 Cadastrar Profissional",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profissionais",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profissionais"
+              ]
+            },
+            "description": "Guarda o id em {{profissionalId}}.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenDono}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Ana Paula\",\n  \"especialidades\": [\n    \"Corte\",\n    \"Coloracao\"\n  ],\n  \"tarifaBase\": 80.0,\n  \"estabelecimentoId\": \"{{estabelecimentoId}}\",\n  \"emailContato\": \"ana@salaobela.com\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('profissionalId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.3 Cadastrar Servico",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/servicos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "servicos"
+              ]
+            },
+            "description": "Guarda o id em {{servicoId}}.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenDono}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Corte Feminino\",\n  \"descricao\": \"Corte + escova\",\n  \"preco\": 90.0,\n  \"duracaoMinutos\": 60,\n  \"estabelecimentoId\": \"{{estabelecimentoId}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('servicoId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.4 Listar Estabelecimentos (busca)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/estabelecimentos?q=Sao Paulo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "estabelecimentos"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Sao Paulo"
+                }
+              ]
+            },
+            "description": "Endpoint publico, nao precisa de token."
+          },
+          "response": []
+        },
+        {
+          "name": "2.5 Buscar Estabelecimento por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/estabelecimentos/{{estabelecimentoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "estabelecimentos",
+                "{{estabelecimentoId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Disponibilidade do Profissional",
+      "item": [
+        {
+          "name": "3.1 Definir Disponibilidade",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profissionais/{{profissionalId}}/disponibilidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profissionais",
+                "{{profissionalId}}",
+                "disponibilidades"
+              ]
+            },
+            "description": "Cadastra a janela de agenda para o MESMO dia da semana usado em {{dataFutura}} (calculado automaticamente).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenDono}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"diaSemana\": \"{{diaSemanaFutura}}\",\n  \"horaInicio\": \"09:00:00\",\n  \"horaFim\": \"18:00:00\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.2 Listar Janelas de Disponibilidade",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profissionais/{{profissionalId}}/disponibilidades",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profissionais",
+                "{{profissionalId}}",
+                "disponibilidades"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "3.3 Consultar Slots Livres",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/profissionais/{{profissionalId}}/disponibilidades/slots-livres?data={{dataFutura}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "profissionais",
+                "{{profissionalId}}",
+                "disponibilidades",
+                "slots-livres"
+              ],
+              "query": [
+                {
+                  "key": "data",
+                  "value": "{{dataFutura}}"
+                }
+              ]
+            },
+            "description": "Deve retornar horarios de 30 em 30 min entre 09:00 e 18:00."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Agendamento",
+      "item": [
+        {
+          "name": "4.1 Criar Agendamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agendamentos"
+              ]
+            },
+            "description": "Cliente agenda as 09:00 no dia calculado. Guarda o id em {{agendamentoId}}.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profissionalId\": \"{{profissionalId}}\",\n  \"servicoId\": \"{{servicoId}}\",\n  \"dataHora\": \"{{dataHoraFutura}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('agendamentoId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.2 Tentar Agendar o MESMO horario (deve dar 409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agendamentos"
+              ]
+            },
+            "description": "Teste de double-booking: deve retornar 409 Conflict.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profissionalId\": \"{{profissionalId}}\",\n  \"servicoId\": \"{{servicoId}}\",\n  \"dataHora\": \"{{dataHoraFutura}}\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 409 (double-booking bloqueado)', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.3 Meus Agendamentos (Cliente)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos/meus",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agendamentos",
+                "meus"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.4 Painel do Estabelecimento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos/estabelecimento/{{estabelecimentoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agendamentos",
+                "estabelecimento",
+                "{{estabelecimentoId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenDono}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.5 Confirmar Agendamento (Estabelecimento)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos/{{agendamentoId}}/status?status=CONFIRMADO",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agendamentos",
+                "{{agendamentoId}}",
+                "status"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "CONFIRMADO"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenDono}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.6 Reagendar",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos/{{agendamentoId}}/reagendar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agendamentos",
+                "{{agendamentoId}}",
+                "reagendar"
+              ]
+            },
+            "description": "Reagenda para o mesmo horario so pra validar o fluxo (na pratica, use uma data/hora diferente).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"novaDataHora\": \"{{dataHoraFutura}}\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4.7 Marcar como Concluido (Estabelecimento)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/agendamentos/{{agendamentoId}}/status?status=CONCLUIDO",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "agendamentos",
+                "{{agendamentoId}}",
+                "status"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "CONCLUIDO"
+                }
+              ]
+            },
+            "description": "Necessario ANTES de avaliar (so pode avaliar agendamento concluido).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenDono}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Avaliacao",
+      "item": [
+        {
+          "name": "5.1 Avaliar Atendimento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/avaliacoes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "avaliacoes"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agendamentoId\": \"{{agendamentoId}}\",\n  \"nota\": 5,\n  \"comentario\": \"Atendimento excelente!\"\n}"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Calendario (iCal)",
+      "item": [
+        {
+          "name": "6.1 Feed do Cliente (.ics)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/meu-feed.ics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "meu-feed.ics"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.2 Feed do Profissional (.ics, publico)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/calendario/profissionais/{{profissionalId}}/feed.ics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calendario",
+                "profissionais",
+                "{{profissionalId}}",
+                "feed.ics"
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Busca Avancada de Estabelecimentos",
+      "item": [
+        {
+          "name": "7.1 Por servico oferecido",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/estabelecimentos?servico=Corte",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "estabelecimentos"
+              ],
+              "query": [
+                {
+                  "key": "servico",
+                  "value": "Corte"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "7.2 Por faixa de preco",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/estabelecimentos?precoMin=50&precoMax=150",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "estabelecimentos"
+              ],
+              "query": [
+                {
+                  "key": "precoMin",
+                  "value": "50"
+                },
+                {
+                  "key": "precoMax",
+                  "value": "150"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "7.3 Por nota minima",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/estabelecimentos?notaMinima=4",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "estabelecimentos"
+              ],
+              "query": [
+                {
+                  "key": "notaMinima",
+                  "value": "4"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "7.4 Por disponibilidade em uma data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/estabelecimentos?disponivelEm={{dataFutura}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "estabelecimentos"
+              ],
+              "query": [
+                {
+                  "key": "disponivelEm",
+                  "value": "{{dataFutura}}"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

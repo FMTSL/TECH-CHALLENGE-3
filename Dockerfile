@@ -11,4 +11,8 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=build /app/target/tech-challenge-fiap-fase3-*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# JAVA_OPTS fica vazio por padrao (Docker Compose local usa a heap default da JVM,
+# adequada quando ha memoria disponivel). Em ambientes com RAM limitada (ex: Render
+# free tier, 512MB), sobrescreva via variavel de ambiente - ver render.yaml.
+ENV JAVA_OPTS=""
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

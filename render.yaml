@@ -10,7 +10,17 @@ services:
     healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
-        value: docker
+        value: render
+      # Plano free do Render = 512MB de RAM. Sem isso, a JVM usa ergonomia padrao
+      # (heap baseado no total de memoria visivel), o que pode estourar o limite do
+      # container, ser morta pelo OOM killer e reiniciar em loop ate o deploy expirar
+      # ("Timed Out"). -Xmx conservador + SerialGC (menor overhead que o G1 default
+      # em containers pequenos) evitam esse cenario.
+      - key: JAVA_OPTS
+        value: "-Xmx320m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -XX:TieredStopAtLevel=1"
+      # O Render fornece uma connectionString pronta no formato postgres://usuario:senha@host:porta/banco,
+      # que NAO e compativel com o formato jdbc:postgresql://... exigido pelo Spring Boot.
+      # Por isso montamos a URL JDBC a partir das propriedades separadas (ver application-render.yml).
       - key: DB_HOST
         fromDatabase:
           name: booking-beleza-db
@@ -23,13 +33,11 @@ services:
         fromDatabase:
           name: booking-beleza-db
           property: database
-      - key: SPRING_DATASOURCE_URL
-        value: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-      - key: SPRING_DATASOURCE_USERNAME
+      - key: DB_USER
         fromDatabase:
           name: booking-beleza-db
           property: user
-      - key: SPRING_DATASOURCE_PASSWORD
+      - key: DB_PASSWORD
         fromDatabase:
           name: booking-beleza-db
           property: password

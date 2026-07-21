@@ -13,8 +13,8 @@ Essa é a forma mais rápida: a coleção já vem com todas as 26 requisições,
 ### 1.1 Importar a coleção
 
 1. Abre o Postman.
-2. Clica em **Import** (canto superior esquerdo, onde você viu "New" e "Import" na sua tela).
-3. Arrasta o arquivo `booking-beleza.postman_collection.json` (que anexei nesta mensagem) pra janela que abrir, ou clica em **Upload Files** e seleciona ele.
+2. Clica em **Import**.
+3. Arrasta o arquivo `booking-beleza.postman_collection.json` dentro da pasta "postman" pra janela que abrir, ou clica em **Upload Files** e seleciona ele.
 4. Clica em **Import**. Vai aparecer uma coleção chamada **"Booking Beleza - Tech Challenge Fase 3"** na aba **Collections**, à esquerda.
 
 ### 1.2 Rodar os testes
@@ -148,7 +148,3 @@ Testa `GET /api/estabelecimentos` variando os parâmetros:
 - `?disponivelEm=2026-07-27`
 
 ---
-
-## Se algo der errado
-
-Me manda: **qual requisição**, **o corpo que você enviou**, **o código HTTP que voltou** e **o corpo da resposta**. Com isso eu já sei apontar exatamente o que corrigir.

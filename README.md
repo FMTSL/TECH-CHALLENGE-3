@@ -42,14 +42,6 @@ src/main/java/br/com/fiap/agendamento/
 
 **Fluxo de uma requisição:** `Controller → UseCase → Repository (port) → Banco`
 
-### Trade-off assumido (leia antes de questionar em banca)
-
-Para manter o escopo viável, as entidades de domínio (`domain.model`) são anotadas diretamente com `@Entity` (JPA), em vez de ter uma entidade de domínio 100% pura + uma entidade de persistência separada + um mapper. É uma simplificação pragmática comum em projetos Spring de porte médio. Se quiser a separação "hexagonal pura", o próximo passo é: duplicar cada classe em `infrastructure.persistence.entity`, criar `XxxJpaAdapter implements XxxRepository` e um `XxxMapper`. A estrutura de use cases/ports já está pronta para essa evolução sem precisar tocar nas regras de negócio.
-
-### Por que monolito e não microsserviços?
-
-O enunciado da Fase 3 não exige microsserviços — pede Clean Architecture, TDD, testes de integração/carga e deploy. Um monolito modular bem separado por camadas atende 100% dos critérios com muito menos complexidade acidental (sem orquestração de múltiplos bancos, mensageria, etc.), o que deixa mais tempo pra você aprofundar em testes e qualidade — que é o que pesa na nota.
-
 ---
 
 ## Como rodar localmente

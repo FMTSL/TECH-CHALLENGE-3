@@ -4,7 +4,7 @@ import br.com.fiap.agendamento.application.dto.DisponibilidadeRequest;
 import br.com.fiap.agendamento.application.dto.DisponibilidadeResponse;
 import br.com.fiap.agendamento.application.usecase.disponibilidade.ConsultarDisponibilidadeUseCase;
 import br.com.fiap.agendamento.application.usecase.disponibilidade.DefinirDisponibilidadeUseCase;
-import br.com.fiap.agendamento.domain.repository.HorarioDisponivelRepository;
+import br.com.fiap.agendamento.application.usecase.disponibilidade.ListarDisponibilidadesUseCase;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ public class DisponibilidadeController {
 
     private final DefinirDisponibilidadeUseCase definirDisponibilidadeUseCase;
     private final ConsultarDisponibilidadeUseCase consultarDisponibilidadeUseCase;
-    private final HorarioDisponivelRepository horarioDisponivelRepository;
+    private final ListarDisponibilidadesUseCase listarDisponibilidadesUseCase;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -37,7 +37,7 @@ public class DisponibilidadeController {
 
     @GetMapping
     public List<DisponibilidadeResponse> listarJanelas(@PathVariable UUID profissionalId) {
-        return horarioDisponivelRepository.findByProfissionalId(profissionalId).stream()
+        return listarDisponibilidadesUseCase.executar(profissionalId).stream()
                 .map(DisponibilidadeResponse::from)
                 .toList();
     }

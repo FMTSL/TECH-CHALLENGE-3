@@ -1,17 +1,18 @@
 package br.com.fiap.agendamento.domain.repository;
 
 import br.com.fiap.agendamento.domain.model.Usuario;
-import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Port de persistencia para Usuario. Estende JpaRepository (trade-off pragmatico:
- * evita uma camada extra de adapter/mapper para um CRUD simples, mantendo o
- * Spring Data como detalhe de infraestrutura injetado nos use cases via interface).
+ * Port de persistencia para {@link Usuario}. Interface pura de dominio: nao conhece JPA,
+ * Spring Data ou qualquer outro detalhe de infraestrutura. A implementacao concreta
+ * (adapter sobre Spring Data JPA) vive em infrastructure.persistence.adapter.
  */
-public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
+public interface UsuarioRepository {
+    Usuario save(Usuario usuario);
+    Optional<Usuario> findById(UUID id);
     Optional<Usuario> findByEmail(String email);
     boolean existsByEmail(String email);
 }

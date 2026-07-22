@@ -8,6 +8,8 @@
     <Match>
         <Package name="br.com.fiap.agendamento.application.dto"/>
     </Match>
+    <!-- Injecao de dependencia via construtor (Spring): armazenar o bean injetado
+         (ex: JwtAuthenticationFilter) e o padrao normal de DI, nao uma falha real. -->
     <Match>
         <Bug pattern="EI_EXPOSE_REP2"/>
         <Package name="br.com.fiap.agendamento.infrastructure.security"/>

@@ -1,9 +1,9 @@
 package br.com.fiap.agendamento.infrastructure.web.controller;
 
 import br.com.fiap.agendamento.application.dto.ServicoRequest;
+import br.com.fiap.agendamento.application.dto.ServicoResponse;
 import br.com.fiap.agendamento.application.usecase.servico.CadastrarServicoUseCase;
 import br.com.fiap.agendamento.application.usecase.servico.ListarServicosUseCase;
-import br.com.fiap.agendamento.domain.model.Servico;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,12 +25,14 @@ public class ServicoController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Servico cadastrar(@RequestBody @Valid ServicoRequest request) {
-        return cadastrarServicoUseCase.executar(request);
+    public ServicoResponse cadastrar(@RequestBody @Valid ServicoRequest request) {
+        return ServicoResponse.from(cadastrarServicoUseCase.executar(request));
     }
 
     @GetMapping
-    public List<Servico> listar(@RequestParam(required = false) UUID estabelecimentoId) {
-        return listarServicosUseCase.executar(estabelecimentoId);
+    public List<ServicoResponse> listar(@RequestParam(required = false) UUID estabelecimentoId) {
+        return listarServicosUseCase.executar(estabelecimentoId).stream()
+                .map(ServicoResponse::from)
+                .toList();
     }
 }

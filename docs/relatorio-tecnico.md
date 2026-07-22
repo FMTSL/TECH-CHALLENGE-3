@@ -27,11 +27,22 @@ Sistema de agendamento para estabelecimentos de beleza e bem-estar, cobrindo as 
 
 O projeto é um monolito modular organizado em três camadas com regra de dependência unidirecional (`infrastructure → application → domain`):
 
-- **domain**: entidades e regras de negócio puras (`Agendamento.podeCancelar()`, `HorarioDisponivel.contemHorario()`), interfaces de repositório (ports) e exceções de domínio. Não conhece Spring Web nem HTTP.
+- **domain**: entidades e regras de negócio puras (`Agendamento.podeCancelar()`, `HorarioDisponivel.contemHorario()`), interfaces de repositório (ports) e exceções de domínio. Não conhece Spring, JPA, Jackson ou HTTP — as classes de `domain.model` são POJOs simples, sem nenhuma anotação de framework.
 - **application**: um caso de uso por responsabilidade (SRP do SOLID) — `CriarAgendamentoUseCase`, `CancelarAgendamentoUseCase`, `ReagendarAgendamentoUseCase`, etc. Depende apenas de interfaces (`AgendamentoRepository`, `NotificacaoService`, `TokenProvider`), nunca de implementações concretas — aplicando o **D** do SOLID (Dependency Inversion).
-- **infrastructure**: controllers REST, Spring Security/JWT, JPA/Flyway, envio de e-mail — os "adaptadores" e "frameworks externos" citados no enunciado.
+- **infrastructure**: controllers REST, Spring Security/JWT, envio de e-mail, e a camada de persistência — os "adaptadores" e "frameworks externos" citados no enunciado.
 
-Essa separação permitiu, por exemplo, trocar a estratégia de notificação (e-mail) sem tocar em nenhuma linha dos casos de uso, e testar `CriarAgendamentoUseCase` inteiramente com mocks, sem subir Spring Context.
+### Persistência: separação completa entre domínio e JPA
+
+A camada de persistência (`infrastructure.persistence`) segue o padrão adapter para cada agregado (`Usuario`, `Estabelecimento`, `Profissional`, `Servico`, `Agendamento`, `Avaliacao`, `HorarioDisponivel`):
+
+- **`entity`**: a entidade JPA (`@Entity`), com todas as anotações de mapeamento (`@Column`, `@Table`, constraints) — é o equivalente de persistência do modelo de domínio, mas vive exclusivamente na infraestrutura.
+- **`mapper`**: classe estática com `toDomain(...)` e `toEntity(...)`, convertendo entre o POJO de domínio e a entidade JPA nos dois sentidos.
+- **`springdata`**: a interface `JpaRepository` do Spring Data, um detalhe puramente técnico.
+- **`adapter`**: implementa o port definido em `domain.repository` (ex.: `AgendamentoRepository`), delegando para o repositório Spring Data e convertendo o resultado de volta para o modelo de domínio via mapper.
+
+Os use cases dependem só do port (`domain.repository.AgendamentoRepository`), nunca da entidade JPA ou do Spring Data diretamente. Isso significa que a constraint única `(profissional_id, data_hora)` que impede double-booking — um detalhe de mapeamento de persistência — está isolada em `AgendamentoEntity`, e não no modelo de domínio `Agendamento`.
+
+Essa separação permitiu, por exemplo, trocar a estratégia de notificação (e-mail) sem tocar em nenhuma linha dos casos de uso, e testar `CriarAgendamentoUseCase` inteiramente com mocks, sem subir Spring Context nem depender de nenhuma anotação JPA.
 
 ## 4. Desafios técnicos e soluções
 
@@ -81,4 +92,4 @@ Essa separação permitiu, por exemplo, trocar a estratégia de notificação (e
 
 ## 6. Conclusão
 
-O sistema cobre as 7 funcionalidades do enunciado com ênfase em Clean Architecture e qualidade de software. As decisões de simplificação (entidades de domínio anotadas com JPA, filtros em memória, granularidade fixa de slots) foram deliberadas para manter o escopo entregável dentro do prazo da Fase 3, com os próximos passos de evolução documentados junto de cada trade-off.
+O sistema cobre as 7 funcionalidades do enunciado com ênfase em Clean Architecture e qualidade de software. O modelo de domínio é isolado de qualquer framework — a persistência JPA é resolvida inteiramente na infraestrutura, via entidade + mapper + adapter por agregado. As demais decisões de simplificação (filtros de busca avançada em memória, granularidade fixa de slots de disponibilidade) foram deliberadas para manter o escopo entregável dentro do prazo da Fase 3, com os próximos passos de evolução documentados junto de cada trade-off.

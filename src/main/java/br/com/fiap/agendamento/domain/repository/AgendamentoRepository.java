@@ -2,15 +2,20 @@ package br.com.fiap.agendamento.domain.repository;
 
 import br.com.fiap.agendamento.domain.model.Agendamento;
 import br.com.fiap.agendamento.domain.model.StatusAgendamento;
-import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Port de persistencia para {@link Agendamento} — o agregado central do sistema (double-booking, agenda, lembretes). */
-public interface AgendamentoRepository extends JpaRepository<Agendamento, UUID> {
+/**
+ * Port de persistencia para {@link Agendamento} — o agregado central do sistema
+ * (double-booking, agenda, lembretes). Interface pura de dominio, sem dependencia
+ * de JPA/Spring Data; a implementacao concreta vive em infrastructure.persistence.adapter.
+ */
+public interface AgendamentoRepository {
+    Agendamento save(Agendamento agendamento);
+    Optional<Agendamento> findById(UUID id);
     boolean existsByProfissionalIdAndDataHora(UUID profissionalId, LocalDateTime dataHora);
     List<Agendamento> findByClienteId(UUID clienteId);
     List<Agendamento> findByProfissionalId(UUID profissionalId);

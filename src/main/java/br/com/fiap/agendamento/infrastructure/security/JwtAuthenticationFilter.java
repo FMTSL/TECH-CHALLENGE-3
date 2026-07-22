@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -20,6 +21,7 @@ import java.util.UUID;
 /** Intercepta requisicoes, valida o JWT (se presente) e popula o SecurityContext. */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
@@ -42,8 +44,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         usuarioId, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (Exception e) {
+                log.warn("Falha ao validar JWT em {} {}: {} - {}",
+                        request.getMethod(), request.getRequestURI(), e.getClass().getSimpleName(), e.getMessage());
                 SecurityContextHolder.clearContext();
             }
+        } else if (header != null) {
+            log.warn("Cabecalho Authorization presente mas sem prefixo 'Bearer ' em {} {}",
+                    request.getMethod(), request.getRequestURI());
         }
 
         filterChain.doFilter(request, response);

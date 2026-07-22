@@ -11,7 +11,7 @@ Sistema de agendamento para estabelecimentos de beleza e bem-estar, desenvolvido
 - [Como rodar com Docker](#como-rodar-com-docker)
 - [Como rodar os testes](#como-rodar-os-testes)
 - [Endpoints principais](#endpoints-principais)
-- [Fluxo de teste manual (happy path)](#fluxo-de-teste-manual-happy-path)
+- [Testando a API](#testando-a-api)
 - [Decisões técnicas e trade-offs](#decisões-técnicas-e-trade-offs)
 - [Mapeamento com os critérios de avaliação](#mapeamento-com-os-critérios-de-avaliação)
 
@@ -19,28 +19,40 @@ Sistema de agendamento para estabelecimentos de beleza e bem-estar, desenvolvido
 
 ## Arquitetura
 
-O projeto segue **Clean Architecture** em 3 camadas, isolando regras de negócio de detalhes de framework:
+O projeto segue **Clean Architecture** em 3 camadas, com separação completa entre modelo de domínio e modelo de persistência (nenhuma anotação de framework dentro de `domain`):
 
 ```
 src/main/java/br/com/fiap/agendamento/
-├── domain/                    # Regras de negócio puras
-│   ├── model/                 # Entidades (Usuario, Estabelecimento, Agendamento...)
-│   ├── repository/            # Ports de persistência (interfaces)
-│   └── exception/             # Exceções de domínio
-├── application/                # Casos de uso (orquestram o domínio)
-│   ├── usecase/                # Um caso de uso = uma responsabilidade (SRP)
-│   ├── dto/                    # Request/Response da API
-│   └── port/                   # Ports de saída (ex: TokenProvider)
-└── infrastructure/             # Detalhes de framework (o "mundo externo")
-    ├── web/controller/         # Controllers REST
-    ├── web/exception/          # Tratamento global de erros
-    ├── security/               # JWT, filtros, Spring Security
-    └── config/                 # OpenAPI/Swagger
+├── domain/                          # Regras de negócio puras — zero dependência de framework
+│   ├── model/                       # Entidades de domínio (POJOs simples: Usuario, Agendamento...)
+│   ├── repository/                  # Ports de persistência (interfaces puras, sem JPA)
+│   └── exception/                   # Exceções de domínio
+├── application/                     # Casos de uso (orquestram o domínio)
+│   ├── usecase/                     # Um caso de uso = uma responsabilidade (SRP)
+│   ├── dto/                         # Request/Response da API
+│   └── port/                        # Ports de saída (ex: TokenProvider, NotificacaoService)
+└── infrastructure/                  # Detalhes de framework (o "mundo externo")
+    ├── web/controller/              # Controllers REST
+    ├── web/exception/                # Tratamento global de erros
+    ├── security/                     # JWT, filtros, Spring Security
+    ├── notification/                 # Envio de e-mail, scheduler de lembretes
+    ├── config/                       # OpenAPI/Swagger
+    └── persistence/
+        ├── entity/                   # Entidades JPA (@Entity), isoladas aqui
+        ├── mapper/                   # Conversão entidade de domínio ↔ entidade JPA
+        ├── springdata/                # Interfaces Spring Data JPA (JpaRepository)
+        └── adapter/                   # Implementação dos ports de domínio sobre Spring Data
 ```
 
-**Regra de dependência:** `infrastructure` depende de `application`, que depende de `domain`. O `domain` não conhece Spring, JPA ou HTTP — apenas regras de negócio.
+**Regra de dependência:** `infrastructure` depende de `application`, que depende de `domain`. O `domain` não conhece Spring, JPA, Jackson ou HTTP — só regras de negócio e tipos da própria linguagem.
 
-**Fluxo de uma requisição:** `Controller → UseCase → Repository (port) → Banco`
+**Fluxo de uma requisição:** `Controller → UseCase → Repository (port, interface pura) → Adapter (infrastructure.persistence) → Spring Data JPA → Banco`
+
+As classes em `domain.model` (`Usuario`, `Agendamento`, `Estabelecimento`, etc.) são POJOs com Lombok (`@Getter`/`@Setter`/`@Builder`) e nada além disso — sem `@Entity`, sem `@Column`, sem qualquer anotação do JPA. A persistência é resolvida inteiramente na borda: cada agregado tem uma entidade JPA equivalente em `infrastructure.persistence.entity` (ex.: `AgendamentoEntity`), um mapper estático que converte nos dois sentidos (`infrastructure.persistence.mapper`), e um adapter (`infrastructure.persistence.adapter`) que implementa o port de domínio (`domain.repository.AgendamentoRepository`) por cima de um repositório Spring Data JPA convencional. Os use cases dependem apenas do port — nunca sabem que Hibernate ou Postgres existem.
+
+### Por que monolito e não microsserviços?
+
+O enunciado da Fase 3 não exige microsserviços — pede Clean Architecture, TDD, testes de integração/carga e deploy. Um monolito modular bem separado por camadas atende 100% dos critérios com muito menos complexidade acidental (sem orquestração de múltiplos bancos, mensageria, etc.), o que deixa mais tempo pra aprofundar em testes e qualidade — que é o que pesa na nota.
 
 ---
 
@@ -101,12 +113,20 @@ Todas rodam automaticamente na fase `verify` (e portanto no `./mvnw verify` e no
 
 ### Testes de performance/carga
 
+Requer [k6](https://k6.io/docs/get-started/installation/) instalado separadamente (não é uma dependência Maven).
+
 ```bash
-# com a aplicacao rodando (local ou docker compose)
+# Linux/macOS (bash/zsh)
 BASE_URL=http://localhost:8080 k6 run performance-tests/agendamento-load-test.js
 ```
 
-Requer [k6](https://k6.io/docs/get-started/installation/) instalado. Detalhes em `performance-tests/README.md`.
+```powershell
+# Windows (PowerShell) — a sintaxe de variavel de ambiente inline acima nao funciona no PowerShell
+$env:BASE_URL="http://localhost:8080"
+k6 run performance-tests/agendamento-load-test.js
+```
+
+Se `BASE_URL` não for definida, o script usa `http://localhost:8080` como padrão. Detalhes em `performance-tests/README.md`.
 
 ---
 
@@ -154,7 +174,18 @@ A busca de estabelecimentos (`GET /api/estabelecimentos`) também retorna `notaM
 
 Todas as classes de domínio, casos de uso, controllers e ports têm Javadoc de classe explicando responsabilidade e, quando relevante, o trade-off de design por trás da implementação. O Swagger (`/swagger-ui.html`) continua sendo a documentação primária da API — o enunciado aceita "Javadoc **ou** Swagger", este projeto entrega os dois.
 
-## Fluxo de teste manual (happy path)
+## Testando a API
+
+O diretório [`postman/`](postman/) contém uma coleção do Postman (`booking-beleza.postman_collection.json`) com os testes manuais dos fluxos principais do sistema, prontos para importar e executar — token e IDs (estabelecimento, profissional, serviço, agendamento) são capturados automaticamente entre requisições via scripts, sem necessidade de copiar valores manualmente.
+
+O documento [`postman/README.md`](postman/README.md) descreve a mesma sequência de testes de duas formas equivalentes:
+
+- **Via Postman**: importação da coleção e execução em lote (`Run collection`) ou requisição por requisição.
+- **Via Swagger UI**: os mesmos passos reproduzidos manualmente em `/swagger-ui.html`, com os corpos de requisição prontos para copiar.
+
+A sequência cobre: registro e login de cliente e estabelecimento; cadastro de estabelecimento, profissional e serviço; definição de disponibilidade; criação de agendamento (incluindo o teste da regra de double-booking, que deve retornar `409` na segunda tentativa no mesmo horário); confirmação, reagendamento e conclusão de um agendamento; avaliação; feeds de calendário do cliente e do profissional; e os filtros de busca avançada.
+
+Fluxo rápido via `curl`, para referência:
 
 ```bash
 # 1) Registrar dono de estabelecimento
@@ -186,10 +217,11 @@ ESTAB_ID=$(curl -s -X POST localhost:8080/api/estabelecimentos -H "Authorization
 | `ddl-auto: validate` | Nunca deixa o Hibernate alterar o schema em produção — só o Flyway pode |
 | Testcontainers nos testes de integração | Testa contra um Postgres real, não H2, evitando falsos positivos de compatibilidade SQL |
 | DTOs (`record`) na borda da API | Desacopla o contrato HTTP do modelo de domínio |
+| Separação entidade de domínio / entidade JPA (mapper + adapter por agregado) | `domain.model` livre de qualquer anotação de framework; a troca de ORM ou de mecanismo de persistência não toca em regra de negócio nem em use case |
 
 ## Mapeamento com os critérios de avaliação
 
-- **Clean Architecture** → camadas `domain / application / infrastructure`, regra de dependência unidirecional, use cases com responsabilidade única.
+- **Clean Architecture** → camadas `domain / application / infrastructure`, regra de dependência unidirecional, use cases com responsabilidade única. `domain.model` são POJOs sem nenhuma anotação de framework; a persistência (JPA) é resolvida inteiramente em `infrastructure.persistence` via entidade + mapper + adapter por agregado, implementando os ports definidos em `domain.repository`.
 - **TDD** → use cases centrais cobertos (`CriarAgendamentoUseCaseTest`, `CancelarAgendamentoUseCaseTest`, `ReagendarAgendamentoUseCase`, `ConsultarDisponibilidadeUseCaseTest`, `RegistrarUsuarioUseCaseTest`), caminho feliz + exceções + regra de concorrência.
 - **Testes integrados / análise de código** → `FluxoAgendamentoIT` (Testcontainers) + Checkstyle/SpotBugs/PMD rodando em `mvn verify`.
 - **BDD** → `src/test/resources/features/agendamento.feature` (Gherkin em português) executado via Cucumber + `CucumberIT`, ponta a ponta contra a API real.

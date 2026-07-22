@@ -3,6 +3,30 @@ spring:
     url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    hikari:
+      # Plano free do Render = 512MB de RAM total. O pool default do HikariCP (10 conexoes)
+      # reserva mais memoria e threads do que esse ambiente comporta com folga; reduzimos
+      # para o minimo viável para um servico com pouco trafego simultaneo de demonstracao.
+      maximum-pool-size: 3
+      minimum-idle: 1
   mail:
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:1025}
+    # Falha rapido em vez de deixar a thread da requisicao presa tentando conectar
+    # (nao evita o "Connection refused" ja esperado sem um MAIL_HOST real configurado,
+    # mas protege contra hosts que demoram a responder, como um DNS incorreto).
+    properties:
+      mail:
+        smtp:
+          connectiontimeout: 3000
+          timeout: 3000
+          writetimeout: 3000
+
+server:
+  tomcat:
+    threads:
+      # Default do Tomcat embarcado e 200 threads; cada uma reserva uma stack (~1MB).
+      # Num container de 512MB isso sozinho pode consumir mais que o heap configurado.
+      max: 20
+      min-spare: 4
+    max-connections: 100

@@ -1,4 +1,12 @@
 spring:
+  # O plano free do Render da uma fatia pequena/compartilhada de CPU. O boot local leva
+  # ~11s; no Render, ~67s - o heap maior (ajuste anterior) nao mudou nada, confirmando
+  # que o gargalo e CPU, nao memoria. Com lazy-initialization, o Spring so cria cada bean
+  # na primeira vez que ele e realmente usado, em vez de criar todos no boot - reduz bastante
+  # o trabalho de CPU concentrado no startup, ao custo da primeira requisicao em cada
+  # endpoint ficar um pouco mais lenta (aceitavel para este ambiente de demonstracao).
+  main:
+    lazy-initialization: true
   datasource:
     url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
     username: ${DB_USER}

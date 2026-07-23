@@ -15,4 +15,4 @@ EXPOSE 8080
 # adequada quando ha memoria disponivel). Em ambientes com RAM limitada (ex: Render
 # free tier, 512MB), sobrescreva via variavel de ambiente - ver render.yaml.
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Xms128m -Xmx384m"
-ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Dserver.port=${PORT:-8080} -jar app.jar"]

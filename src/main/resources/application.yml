@@ -21,6 +21,15 @@ spring:
           starttls:
             enable: false
 
+# Render (e outros PaaS no estilo Heroku) injeta a variavel de ambiente PORT com a porta
+# que o container deve escutar (normalmente diferente de 8080) e faz o health check nessa
+# porta. Sem isso, a aplicacao sempe sobe em 8080 e o health check do Render nunca encontra
+# ninguem escutando na porta que ele espera, resultando em timeout mesmo com a aplicacao
+# saudavel. Localmente (Docker Compose, execucao direta) a variavel PORT nao existe e o
+# fallback :8080 mantem o comportamento de sempre.
+server:
+  port: ${PORT:8080}
+
 app:
   security:
     jwt:

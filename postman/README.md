@@ -2,7 +2,7 @@
 
 Este diretório contém uma coleção do Postman (`booking-beleza.postman_collection.json`) com os testes manuais da API, cobrindo os fluxos principais do sistema. A mesma sequência pode ser reproduzida no Swagger UI, descrita na segunda parte deste documento.
 
-Pré-requisito: aplicação em execução (`docker compose up`) em `http://localhost:8080`.
+Pré-requisito: aplicação em execução (`docker compose up`) em `http://localhost:8080`, ou a variável `baseUrl` da coleção apontando para o ambiente de produção na AWS (ver `docs/deploy-aws.md`).
 
 ## Estrutura da coleção
 

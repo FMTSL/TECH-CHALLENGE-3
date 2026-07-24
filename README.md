@@ -2,11 +2,24 @@
 
 Sistema de agendamento para estabelecimentos de beleza e bem-estar, desenvolvido em **Java 21 + Spring Boot 3**, aplicando **Clean Architecture**, **SOLID**, **TDD** e **Clean Code**, conforme especificação da Fase 3 (Substitutiva) da Pós-Tech FIAP.
 
+## O que o sistema faz
+
+- **Cadastro de estabelecimentos**: nome, endereço, cidade, horário de funcionamento e fotos, associados ao usuário dono.
+- **Perfil de profissionais**: especialidades, tarifa base e agenda semanal recorrente (dia da semana + janela de horário), com cálculo automático de horários livres.
+- **Agendamento de serviços**: cliente escolhe profissional, serviço e horário; o sistema impede double-booking (duas camadas de proteção: validação em memória e constraint única no banco) e envia confirmação por e-mail para cliente e profissional.
+- **Avaliações**: cliente avalia um atendimento depois de concluído (nota de 1 a 5 + comentário); a nota média aparece na busca de estabelecimentos.
+- **Busca e filtragem avançada**: por nome/cidade, serviço oferecido, faixa de preço, nota mínima e disponibilidade numa data específica.
+- **Gerenciamento de agendamentos**: painel do estabelecimento para listar e atualizar status (confirmado, concluído, não compareceu); cliente pode cancelar ou reagendar.
+- **Lembretes automáticos**: job agendado que roda de hora em hora e notifica cliente e profissional ~24h antes do horário marcado.
+- **Integração com calendários**: feed iCalendar (`.ics`) para o cliente (autenticado) e para cada profissional (link público de assinatura), compatível com Google Calendar, Outlook e Apple Calendar.
+
 ---
 
 ## Sumário
 
+- [O que o sistema faz](#o-que-o-sistema-faz)
 - [Arquitetura](#arquitetura)
+- [Ambientes de deploy](#ambientes-de-deploy)
 - [Como rodar localmente](#como-rodar-localmente)
 - [Como rodar com Docker](#como-rodar-com-docker)
 - [Como rodar os testes](#como-rodar-os-testes)
@@ -53,6 +66,40 @@ As classes em `domain.model` (`Usuario`, `Agendamento`, `Estabelecimento`, etc.)
 ### Por que monolito e não microsserviços?
 
 O enunciado da Fase 3 não exige microsserviços — pede Clean Architecture, TDD, testes de integração/carga e deploy. Um monolito modular bem separado por camadas atende 100% dos critérios com muito menos complexidade acidental (sem orquestração de múltiplos bancos, mensageria, etc.), o que deixa mais tempo pra aprofundar em testes e qualidade — que é o que pesa na nota.
+
+---
+
+## Ambientes de deploy
+
+O enunciado pede deploy em pelo menos um ambiente, incluindo local e nuvem. Foram efetivamente executados dois ambientes, e documentados outros dois:
+
+| Ambiente | Status | Detalhes |
+|---|---|---|
+| **Local** (Docker Compose) | ✅ Validado | `docker compose up --build` — app + Postgres + MailHog |
+| **AWS ECS Fargate** (app) + **Render** (Postgres) | ✅ Validado, no ar | Ver abaixo |
+| Render (aplicação completa, plano free) | ⚠️ Parcial | Banco em produção (usado pela AWS); deploy do serviço web completo não se sustentou — detalhes abaixo |
+| Azure App Service | 📄 Documentado, não executado | Guia completo em `docs/deploy-azure.md` |
+
+### Topologia em produção: AWS + Render
+
+A aplicação roda em um cluster ECS Fargate na AWS (sem Load Balancer — a task recebe IP público direto), conectada a um banco Postgres gerenciado no Render através da internet, com conexão criptografada (`sslmode=require`). É uma arquitetura deliberadamente distribuída entre dois provedores: o Postgres do Render já estava em produção e funcionando corretamente, então em vez de duplicar o banco na AWS, a aplicação foi apontada para ele — o mesmo padrão de qualquer aplicação real que consome um banco gerenciado externo.
+
+Passo a passo completo em `docs/deploy-aws.md`. Resumo do fluxo:
+
+1. Build da imagem Docker e push para o ECR.
+2. Task definition (`infra/aws/task-definition.json`) aponta `SPRING_DATASOURCE_URL` para o hostname externo do Postgres no Render, com `sslmode=require`.
+3. Cluster + serviço Fargate, IP público liberado só na porta 8080.
+4. Health check em `/actuator/health`.
+
+### Por que o deploy completo no Render (plano free) não se sustentou
+
+Na tentativa de subir a aplicação inteira (app + banco) só no Render, o serviço web consistentemente ultrapassava a janela de health check do Render durante o boot. O diagnóstico, em ordem:
+
+1. **Primeira hipótese, correta parcialmente: porta errada.** A aplicação sempre subia fixa na porta 8080, mas o Render (para serviços Docker) injeta uma variável `PORT` dinâmica (nesse caso `10000`) e faz o health check nela. Corrigido lendo `server.port: ${PORT:8080}` — necessário, mas não suficiente.
+2. **Segunda hipótese, descartada: falta de memória.** O padrão de logs (múltiplos `HikariPool - Shutdown initiated` em sequência) sugeria um container sendo reiniciado por OOM. Reduzir o heap da JVM (`-Xmx256m` a `-Xmx400m`, testado em ambas as direções) não teve efeito mensurável no tempo de boot — descartando memória como causa.
+3. **Causa real: CPU compartilhada/limitada do plano free.** O boot local leva ~11s; no Render, entre 60 e 68 segundos — o mesmo processo, ~6x mais lento, consistente com CPU throttled. `spring.main.lazy-initialization=true` (criar beans sob demanda em vez de todos no boot) cortou parte do tempo, mas não o suficiente para ficar dentro da janela de health check do Render.
+
+A solução prática foi separar as responsabilidades: manter o Postgres no Render (onde já funcionava bem — bancos de dados são menos sensíveis a esse tipo de throttling que uma JVM inteira subindo) e mover a aplicação para a AWS, que não tem essa limitação de CPU no Fargate. Essa investigação está detalhada, com os logs reais de cada tentativa, em `docs/deploy-free-tier.md`.
 
 ---
 
@@ -227,5 +274,5 @@ ESTAB_ID=$(curl -s -X POST localhost:8080/api/estabelecimentos -H "Authorization
 - **BDD** → `src/test/resources/features/agendamento.feature` (Gherkin em português) executado via Cucumber + `CucumberIT`, ponta a ponta contra a API real.
 - **CI** → `.github/workflows/ci.yml` roda build, testes unitários, `mvn verify` (integração + BDD + análise estática) e valida o `docker build`.
 - **Testes não funcionais** → `performance-tests/agendamento-load-test.js` (k6), até 100 VUs simultâneos, thresholds de p95 e taxa de erro.
-- **Deploy** → local via `docker-compose.yml`; nuvem via `docs/deploy-aws.md` (ECS Fargate), `docs/deploy-azure.md` (App Service) e `docs/deploy-free-tier.md` (Render, gratuito, `render.yaml` na raiz).
+- **Deploy** → local via `docker-compose.yml` (validado); nuvem via AWS ECS Fargate + Postgres gerenciado no Render, validado e no ar (`docs/deploy-aws.md`); Azure App Service documentado em `docs/deploy-azure.md`; investigação completa da tentativa de deploy 100% gratuito em `docs/deploy-free-tier.md`.
 - **Documentação técnica** → Swagger/OpenAPI (`/swagger-ui.html`) + `docs/relatorio-tecnico.md` (tecnologias, desafios e soluções, ênfase em Clean Architecture).

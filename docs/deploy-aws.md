@@ -1,5 +1,7 @@
 # Deploy na AWS (ECS Fargate) com banco no Render
 
+> **Este é o ambiente de produção atual do projeto** — guia validado, não apenas teórico. A aplicação está no ar em um cluster ECS Fargate, conectada ao Postgres gerenciado do Render.
+
 Guia para publicar a aplicação na AWS usando o Free Tier, sem Load Balancer (o Fargate recebe um IP público direto — suficiente para demonstrar o deploy em nuvem exigido pelo enunciado). O banco de dados fica hospedado no Render (Postgres gerenciado, plano free) e é acessado pela aplicação na AWS através da internet.
 
 Tempo estimado: 20–30 minutos. Custo: dentro do Free Tier se a conta AWS tiver menos de 12 meses e os recursos forem removidos ao final (ver seção de limpeza).

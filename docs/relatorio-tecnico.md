@@ -21,7 +21,7 @@ Sistema de agendamento para estabelecimentos de beleza e bem-estar, cobrindo as 
 | Análise estática | Checkstyle + SpotBugs + PMD | Três ferramentas complementares: estilo, bugs prováveis, complexidade/design |
 | Cobertura | JaCoCo | Relatório de cobertura integrado ao `mvn verify` |
 | CI | GitHub Actions | Build, testes unitários, integração, análise estática e build de imagem Docker a cada push |
-| Deploy | Docker + Docker Compose (local), AWS ECS Fargate e Azure App Service (nuvem) | Ver `docs/deploy-aws.md` e `docs/deploy-azure.md` |
+| Deploy | Docker + Docker Compose (local, validado); AWS ECS Fargate + Postgres gerenciado no Render (produção, validado); Azure App Service (documentado) | Ver `docs/deploy-aws.md`, `docs/deploy-azure.md` e `docs/deploy-free-tier.md` |
 
 ## 3. Arquitetura: Clean Architecture aplicada
 
@@ -82,6 +82,17 @@ Essa separação permitiu, por exemplo, trocar a estratégia de notificação (e
 
 **Solução:** em vez de criar um segundo fluxo de autenticação (fora de escopo), adicionamos um campo opcional `emailContato` ao perfil do profissional. Quando preenchido, ele passa a receber as mesmas notificações de confirmação/cancelamento do cliente, e ganha um feed iCalendar próprio (`/api/calendario/profissionais/{id}/feed.ics`), público como link de assinatura — o mesmo modelo usado por Google Calendar/Outlook para calendários externos, sem exigir login.
 
+### 4.7 Deploy em nuvem: diagnóstico de timeout de health check no Render
+
+**Desafio:** subir a aplicação completa no plano gratuito do Render resultava, de forma consistente, em `Timed Out after waiting for internal health check`, sem uma causa óbvia no primeiro log.
+
+**Solução:** diagnóstico eliminatório, testando uma hipótese por vez:
+1. Porta incorreta — o Render injeta uma variável `PORT` dinâmica para serviços Docker e faz o health check nela, não na porta declarada no `EXPOSE` do Dockerfile. A aplicação estava fixa em `8080` e nunca lia essa variável. Corrigido com `server.port: ${PORT:8080}`. Necessário, mas insuficiente sozinho.
+2. Falta de memória — hipótese descartada depois de reduzir o heap da JVM em duas direções diferentes sem qualquer mudança mensurável no tempo de boot, provando que o padrão de logs observado (múltiplos shutdowns do HikariCP em sequência) era consequência do timeout do Render encerrando o container, não causa de um crash por OOM.
+3. CPU compartilhada do plano gratuito — causa real, confirmada comparando o tempo de boot local (~11s) com o do Render (60–68s, ~6x mais lento para o mesmo processo). `spring.main.lazy-initialization` reduziu o tempo em ~10%, insuficiente para ficar dentro da janela de health check.
+
+A decisão final foi arquitetural, não apenas de configuração: separar as responsabilidades entre dois provedores, mantendo o Postgres no Render (onde funciona bem) e movendo a aplicação para AWS ECS Fargate (sem o mesmo limite de CPU no boot), conectada ao banco externo via `sslmode=require`. O diagnóstico completo, com os tempos medidos em cada tentativa, está em `docs/deploy-free-tier.md`.
+
 ## 5. Qualidade de software
 
 - **TDD**: praticamente todos os casos de uso têm testes unitários dedicados — criação/cancelamento/reagendamento de agendamento, disponibilidade, cadastro de estabelecimento/profissional/serviço, avaliação, autenticação, atualização de status e busca/filtragem — cobrindo caminho feliz, regras de negócio e casos de borda.
@@ -92,4 +103,4 @@ Essa separação permitiu, por exemplo, trocar a estratégia de notificação (e
 
 ## 6. Conclusão
 
-O sistema cobre as 7 funcionalidades do enunciado com ênfase em Clean Architecture e qualidade de software. O modelo de domínio é isolado de qualquer framework — a persistência JPA é resolvida inteiramente na infraestrutura, via entidade + mapper + adapter por agregado. As demais decisões de simplificação (filtros de busca avançada em memória, granularidade fixa de slots de disponibilidade) foram deliberadas para manter o escopo entregável dentro do prazo da Fase 3, com os próximos passos de evolução documentados junto de cada trade-off.
+O sistema cobre as 7 funcionalidades do enunciado com ênfase em Clean Architecture e qualidade de software. O modelo de domínio é isolado de qualquer framework — a persistência JPA é resolvida inteiramente na infraestrutura, via entidade + mapper + adapter por agregado. O deploy em nuvem está validado e em produção (AWS ECS Fargate + Postgres gerenciado no Render), com a tentativa de deploy 100% gratuito documentada mesmo não tendo se sustentado, incluindo o processo de diagnóstico que levou à decisão final de arquitetura distribuída entre dois provedores. As demais decisões de simplificação (filtros de busca avançada em memória, granularidade fixa de slots de disponibilidade) foram deliberadas para manter o escopo entregável dentro do prazo da Fase 3, com os próximos passos de evolução documentados junto de cada trade-off.

@@ -1,15 +1,16 @@
-# Deploy na AWS (ECS Fargate)
+# Deploy na AWS (ECS Fargate) com banco no Render
 
-Guia completo para publicar a aplicação na AWS usando o Free Tier, sem Load Balancer (o Fargate recebe um IP público direto — suficiente para demonstrar o deploy em nuvem exigido pelo enunciado; um ALB pode ser adicionado depois se necessário).
+Guia para publicar a aplicação na AWS usando o Free Tier, sem Load Balancer (o Fargate recebe um IP público direto — suficiente para demonstrar o deploy em nuvem exigido pelo enunciado). O banco de dados fica hospedado no Render (Postgres gerenciado, plano free) e é acessado pela aplicação na AWS através da internet.
 
-Tempo estimado: 30–40 minutos. Custo: dentro do Free Tier se a conta AWS tiver menos de 12 meses e os recursos forem removidos ao final (ver seção de limpeza).
+Tempo estimado: 20–30 minutos. Custo: dentro do Free Tier se a conta AWS tiver menos de 12 meses e os recursos forem removidos ao final (ver seção de limpeza).
 
 ## 0. Pré-requisitos
 
-- Conta AWS ativa, com um usuário IAM com permissões administrativas (ou as políticas `AmazonECS_FullAccess`, `AmazonEC2ContainerRegistryFullAccess`, `AmazonRDSFullAccess`, `IAMFullAccess`, `CloudWatchLogsFullAccess`).
+- Conta AWS ativa, com um usuário IAM com permissões administrativas (ou as políticas `AmazonECS_FullAccess`, `AmazonEC2ContainerRegistryFullAccess`, `IAMFullAccess`, `CloudWatchLogsFullAccess`).
 - [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) instalado.
 - Docker instalado e funcionando (já usado para rodar o projeto localmente).
-- O projeto já validado localmente com `docker compose up` antes de prosseguir — deploy na nuvem não deve ser o primeiro teste da aplicação.
+- Um banco Postgres já criado no Render (plano free), com a **External Database URL** disponível no painel do serviço.
+- O projeto já validado localmente com `docker compose up` antes de prosseguir.
 
 Configura o CLI com suas credenciais (Access Key e Secret Key são geradas em IAM → Users → Security credentials):
 
@@ -40,44 +41,30 @@ echo "VPC: $VPC_ID"
 echo "Subnet: $SUBNET_ID"
 ```
 
-Cria um Security Group liberando a porta 8080 (API) publicamente e a 5432 (Postgres) apenas para recursos do próprio grupo:
+Cria um Security Group liberando a porta 8080 (API) publicamente. Não é necessário abrir a porta 5432: o banco não está nesta VPC, e o tráfego de saída (para o Postgres do Render, pela internet) já é liberado por padrão em qualquer Security Group novo, que permite todo o egress a menos que seja restringido explicitamente.
 
 ```powershell
 $SG_ID = (aws ec2 create-security-group --group-name booking-beleza-sg --description "Booking Beleza" --vpc-id $VPC_ID --query "GroupId" --output text)
 
 aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 8080 --cidr 0.0.0.0/0
-aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 5432 --source-group $SG_ID
 ```
 
-## 2. Banco de dados (RDS PostgreSQL)
+## 2. Banco de dados: Postgres externo (Render)
 
-```powershell
-aws rds create-db-instance `
-  --db-instance-identifier booking-beleza-db `
-  --db-instance-class db.t3.micro `
-  --engine postgres `
-  --engine-version 16.4 `
-  --master-username booking `
-  --master-user-password "TrocarPorUmaSenhaForte123!" `
-  --allocated-storage 20 `
-  --db-name booking_beleza `
-  --vpc-security-group-ids $SG_ID `
-  --no-publicly-accessible `
-  --backup-retention-period 0
+Não é preciso criar nenhum banco na AWS — a aplicação vai se conectar ao Postgres que já existe no Render, pela **External Database URL** (não a Internal, que só funciona dentro da rede privada do próprio Render).
+
+No painel do serviço de banco no Render, anota:
+
+- **Hostname externo**: algo como `dpg-xxxxxxxxxxxxx-a.oregon-postgres.render.com` (não o hostname interno, mais curto, que não resolve fora do Render)
+- **Database**, **Username**, **Password**: os mesmos exibidos no painel
+
+O Render exige conexão criptografada para acessos externos, então a URL JDBC precisa incluir `?sslmode=require`:
+
+```
+jdbc:postgresql://<hostname-externo-do-render>:5432/booking_beleza?sslmode=require
 ```
 
-A criação leva de 5 a 10 minutos. Aguarda ficar disponível e captura o endpoint:
-
-```powershell
-aws rds wait db-instance-available --db-instance-identifier booking-beleza-db
-
-$DB_ENDPOINT = (aws rds describe-db-instances --db-instance-identifier booking-beleza-db --query "DBInstances[0].Endpoint.Address" --output text)
-echo $DB_ENDPOINT
-```
-
-Guarda esse endereço — é o `RDS_ENDPOINT` usado na task definition (passo 5).
-
-`db.t3.micro` com 20GB está dentro do Free Tier de 12 meses. Se a conta já passou desse período, considera reduzir o `allocated-storage` ou usar outra classe.
+Esses três valores (host, usuário, senha) entram na task definition no próximo passo. Como esse arquivo fica versionado no repositório, ele contém apenas placeholders (`RENDER_DB_HOST`, `RENDER_DB_PASSWORD`) — os valores reais são substituídos localmente, sem serem commitados.
 
 ## 3. Imagem: build e push para o ECR
 
@@ -126,9 +113,11 @@ Edita `infra/aws/task-definition.json` (já incluído no repositório) substitui
 |---|---|
 | `ACCOUNT_ID` (duas ocorrências) | valor de `$ACCOUNT_ID` |
 | `REGION` (duas ocorrências) | valor de `$REGION` |
-| `RDS_ENDPOINT` | valor de `$DB_ENDPOINT` (passo 2) |
-| `SENHA_DO_RDS` | a senha definida no `create-db-instance` |
+| `RENDER_DB_HOST` | o hostname externo do banco no Render (passo 2) |
+| `RENDER_DB_PASSWORD` | a senha do banco no Render |
 | `SEGREDO_COM_NO_MINIMO_32_CARACTERES` | qualquer string aleatória com 32+ caracteres |
+
+**Importante:** faz essa edição só localmente, sem commitar o arquivo com os valores reais preenchidos — a versão no repositório deve continuar com os placeholders. Se quiser manter os valores reais versionados de forma segura, a evolução natural é mover `RENDER_DB_PASSWORD`/`JWT_SECRET` para o AWS Systems Manager Parameter Store e referenciá-los via `secrets` na task definition, em vez de `environment` (ver comentário no arquivo de exemplo anterior deste guia, se precisar dessa variante).
 
 Registra a task definition:
 
@@ -185,20 +174,20 @@ aws ecs update-service --cluster booking-beleza-cluster --service booking-beleza
 aws ecs delete-service --cluster booking-beleza-cluster --service booking-beleza-service --force
 aws ecs delete-cluster --cluster booking-beleza-cluster
 
-aws rds delete-db-instance --db-instance-identifier booking-beleza-db --skip-final-snapshot
-
 aws ecr delete-repository --repository-name booking-beleza --force
 
 aws ec2 delete-security-group --group-id $SG_ID
 ```
 
-A exclusão do RDS também leva alguns minutos; confirma em **RDS → Databases** no console que o status mudou para `deleting` antes de considerar concluído.
+O banco no Render continua existindo independente disso — se quiser removê-lo também, isso é feito pelo painel do Render, não pela AWS CLI.
 
 ## Troubleshooting
 
 | Sintoma | Causa provável |
 |---|---|
-| Task para (`STOPPED`) logo após iniciar | Ver `aws ecs describe-tasks ... --query "tasks[0].stoppedReason"`. Geralmente falha ao conectar no RDS (endpoint/senha errados na task definition) ou variável `JWT_SECRET` ausente |
+| Task para (`STOPPED`) logo após iniciar | Ver `aws ecs describe-tasks ... --query "tasks[0].stoppedReason"`. Geralmente falha ao conectar no Postgres do Render (host/senha errados na task definition, ou usou o hostname interno em vez do externo) ou variável `JWT_SECRET` ausente |
+| Erro relacionado a SSL na conexão com o banco | Confirma que a URL JDBC tem `?sslmode=require` no final — o Render exige conexão criptografada para acessos externos |
 | `CannotPullContainerError` | Imagem não foi enviada ao ECR corretamente, ou a URI na task definition não bate com `$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/booking-beleza:latest` |
 | Task fica `RUNNING` mas Swagger não abre | Security Group sem a porta 8080 liberada, ou a task ainda está subindo (Flyway/JPA) — aguardar e conferir logs |
 | `ecsTaskExecutionRole` não encontrada ao registrar a task | Repetir o passo 4 |
+| Log mostra `Connection refused` tentando enviar e-mail | Esperado e inofensivo — não há servidor SMTP configurado neste deploy; a falha é capturada e logada como aviso, sem afetar o funcionamento da API |

@@ -12,9 +12,9 @@
       "portMappings": [{ "containerPort": 8080, "protocol": "tcp" }],
       "environment": [
         { "name": "SPRING_PROFILES_ACTIVE", "value": "docker" },
-        { "name": "SPRING_DATASOURCE_URL", "value": "jdbc:postgresql://RDS_ENDPOINT:5432/booking_beleza" },
+        { "name": "SPRING_DATASOURCE_URL", "value": "jdbc:postgresql://RENDER_DB_HOST:5432/booking_beleza?sslmode=require" },
         { "name": "SPRING_DATASOURCE_USERNAME", "value": "booking" },
-        { "name": "SPRING_DATASOURCE_PASSWORD", "value": "SENHA_DO_RDS" },
+        { "name": "SPRING_DATASOURCE_PASSWORD", "value": "RENDER_DB_PASSWORD" },
         { "name": "JWT_SECRET", "value": "SEGREDO_COM_NO_MINIMO_32_CARACTERES" }
       ],
       "logConfiguration": {

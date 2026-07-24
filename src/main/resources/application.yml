@@ -45,10 +45,3 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
-
-  spring:
-    datasource:
-      url: jdbc:postgresql://dpg-d9fd4hrh523c73evj7n0-a.oregon-postgres.render.com:5432/booking_beleza?sslmode=require
-      username: booking
-      password: NdbYoGVg021JJyvUb8fHb39mQjT71anS
-      driver-class-name: org.postgresql.Driver

@@ -32,9 +32,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/estabelecimentos/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/servicos/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/profissionais/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/api/estabelecimentos", "/api/estabelecimentos/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/api/servicos", "/api/servicos/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/api/profissionais", "/api/profissionais/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/calendario/profissionais/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

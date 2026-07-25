@@ -1,8 +1,17 @@
 # Testes manuais da API
 
-Este diretório contém uma coleção do Postman (`booking-beleza.postman_collection.json`) com os testes manuais da API, cobrindo os fluxos principais do sistema. A mesma sequência pode ser reproduzida no Swagger UI, descrita na segunda parte deste documento.
+Este diretório contém duas coleções do Postman com os mesmos 26 testes, cobrindo os fluxos principais do sistema — a diferença entre elas é só o ambiente:
 
-Pré-requisito: aplicação em execução (`docker compose up`) em `http://localhost:8080`, ou a variável `baseUrl` da coleção apontando para o ambiente de produção na AWS (ver `docs/deploy-aws.md`).
+| Arquivo | Ambiente | baseUrl |
+|---|---|---|
+| `booking-beleza.postman_collection.json` | Local | `http://localhost:8080` |
+| `booking-beleza-producao.postman_collection.json` | Produção (AWS ECS Fargate + Postgres no Render) | `http://18.230.23.143:8080` |
+
+A mesma sequência pode ser reproduzida no Swagger UI, descrita na segunda parte deste documento (troque `localhost:8080` pelo IP de produção se for testar contra o ambiente na nuvem).
+
+> **Atenção ao usar a coleção de produção:** o IP público muda a cada novo deploy da task no ECS, já que este projeto não usa Load Balancer (ver `docs/deploy-aws.md`). Se a coleção parar de responder, confirme o IP público atual da task no console da AWS (**ECS → Cluster → Serviço → Tarefas → Rede**) e atualize a variável `baseUrl` na coleção antes de rodar os testes.
+
+Pré-requisito: aplicação em execução (local via `docker compose up`, ou o ambiente de produção já no ar).
 
 ## Estrutura da coleção
 
@@ -22,7 +31,7 @@ Token e IDs (estabelecimento, profissional, serviço, agendamento) são capturad
 
 ## Importando e executando
 
-1. No Postman: **Import** → seleciona `booking-beleza.postman_collection.json`.
+1. No Postman: **Import** → seleciona uma ou as duas coleções (`booking-beleza.postman_collection.json` para local, `booking-beleza-producao.postman_collection.json` para produção).
 2. Executa as requisições em ordem, pasta por pasta, de cima para baixo.
 3. Alternativa: botão direito na coleção → **Run collection**, para executar todas em sequência com relatório de resultado.
 

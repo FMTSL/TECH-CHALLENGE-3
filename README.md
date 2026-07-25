@@ -223,7 +223,7 @@ Todas as classes de domínio, casos de uso, controllers e ports têm Javadoc de 
 
 ## Testando a API
 
-O diretório [`postman/`](postman/) contém uma coleção do Postman (`booking-beleza.postman_collection.json`) com os testes manuais dos fluxos principais do sistema, prontos para importar e executar — token e IDs (estabelecimento, profissional, serviço, agendamento) são capturados automaticamente entre requisições via scripts, sem necessidade de copiar valores manualmente.
+O diretório [`postman/`](postman/) contém duas coleções do Postman com os mesmos 26 testes manuais dos fluxos principais do sistema — `booking-beleza.postman_collection.json` (local) e `booking-beleza-producao.postman_collection.json` (ambiente de produção na AWS) — prontas para importar e executar. Token e IDs (estabelecimento, profissional, serviço, agendamento) são capturados automaticamente entre requisições via scripts, sem necessidade de copiar valores manualmente.
 
 O documento [`postman/README.md`](postman/README.md) descreve a mesma sequência de testes de duas formas equivalentes:
 

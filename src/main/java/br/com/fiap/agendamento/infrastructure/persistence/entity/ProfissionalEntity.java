@@ -28,7 +28,7 @@ public class ProfissionalEntity {
     @Column(nullable = false)
     private String nome;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "profissional_especialidades", joinColumns = @JoinColumn(name = "profissional_id"))
     @Column(name = "especialidade")
     @Builder.Default

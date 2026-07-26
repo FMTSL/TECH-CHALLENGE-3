@@ -36,7 +36,7 @@ public class EstabelecimentoEntity {
     @Column(name = "horario_funcionamento")
     private String horarioFuncionamento;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "estabelecimento_fotos", joinColumns = @JoinColumn(name = "estabelecimento_id"))
     @Column(name = "url_foto")
     @Builder.Default

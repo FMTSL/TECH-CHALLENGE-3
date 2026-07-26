@@ -13,9 +13,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.Instant;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 /** Centraliza a traducao de excecoes de dominio/aplicacao para respostas HTTP consistentes. */
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(RecursoNaoEncontradoException.class)
@@ -39,6 +41,19 @@ public class GlobalExceptionHandler {
                 .map(f -> f.getField() + ": " + f.getDefaultMessage())
                 .collect(Collectors.joining("; "));
         return corpo(HttpStatus.BAD_REQUEST, mensagem, req);
+    }
+
+    /**
+     * Rede de seguranca para qualquer excecao nao mapeada explicitamente acima (bugs de
+     * infraestrutura, erros de mapeamento JPA, etc). Sem isso, uma excecao inesperada escapa
+     * direto para o container de servlet, que pode devolver uma resposta pouco informativa
+     * (sem corpo, com um status confuso) em vez de um 500 claro com detalhe do erro - o que
+     * torna qualquer bug futuro desse tipo muito mais dificil de diagnosticar pelo cliente da API.
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErroResponse> handleInesperada(Exception ex, HttpServletRequest req) {
+        log.error("Erro nao tratado em {} {}", req.getMethod(), req.getRequestURI(), ex);
+        return corpo(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno inesperado. Consulte os logs do servidor.", req);
     }
 
     private ResponseEntity<ErroResponse> corpo(HttpStatus status, String mensagem, HttpServletRequest req) {

@@ -5,7 +5,6 @@ import { Counter } from 'k6/metrics';
 // Teste de performance/carga (feature "Testes Nao Funcionais" do desafio):
 // simula um volume elevado de clientes buscando estabelecimentos e criando
 // agendamentos simultaneamente, validando que o sistema nao degrada.
-//
 // Uso:
 //   BASE_URL=http://localhost:8080 k6 run performance-tests/agendamento-load-test.js
 

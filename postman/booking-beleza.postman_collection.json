@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Booking Beleza - Tech Challenge Fase 3",
+    "name": "Booking Beleza - Tech Challenge Fase 3 - Felipe Matos de Lima (RM:362291)",
     "description": "Colecao completa de testes manuais da API. Rode os itens NA ORDEM (de cima para baixo dentro de cada pasta, e pasta por pasta) - cada requisicao alimenta a proxima com token/IDs automaticamente via scripts.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

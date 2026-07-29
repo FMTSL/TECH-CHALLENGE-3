@@ -1,13 +1,13 @@
 {
   "info": {
-    "name": "Booking Beleza - PRODUCAO (AWS)",
+    "name": "Booking Beleza - PRODUCAO (AWS) - Felipe Matos de Lima (RM:362291)",
     "description": "Copia da colecao principal apontando para o ambiente de producao na AWS ECS Fargate (app) + Postgres gerenciado no Render (banco), em vez de localhost. \n\nATENCAO: o IP publico muda a cada novo deploy da task no ECS (nao ha Load Balancer fixo neste projeto). Se a colecao parar de responder, confirme o IP publico atual da task no console da AWS (ECS > Cluster > Servico > Tarefas > Rede) e atualize a variavel baseUrl antes de rodar os testes.\n\nRode os itens NA ORDEM (de cima para baixo dentro de cada pasta, e pasta por pasta) - cada requisicao alimenta a proxima com token/IDs automaticamente via scripts.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://18.230.23.143:8080"
+      "value": "http://18.231.160.214:8080"
     },
     {
       "key": "emailCliente",

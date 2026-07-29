@@ -19,7 +19,7 @@ Sistema de agendamento para estabelecimentos de beleza e bem-estar, desenvolvido
 
 - [O que o sistema faz](#o-que-o-sistema-faz)
 - [Arquitetura](#arquitetura)
-- [Ambientes de deploy](#ambientes-de-deploy)
+- [Ambiente de produção](#ambiente-de-produção)
 - [Como rodar localmente](#como-rodar-localmente)
 - [Como rodar com Docker](#como-rodar-com-docker)
 - [Como rodar os testes](#como-rodar-os-testes)
@@ -69,37 +69,17 @@ O enunciado da Fase 3 não exige microsserviços — pede Clean Architecture, TD
 
 ---
 
-## Ambientes de deploy
+## Ambiente de produção
 
-O enunciado pede deploy em pelo menos um ambiente, incluindo local e nuvem. Foram efetivamente executados dois ambientes, e documentados outros dois:
-
-| Ambiente | Status | Detalhes |
+| Componente | Onde está hospedado | Endereço |
 |---|---|---|
-| **Local** (Docker Compose) | ✅ Validado | `docker compose up --build` — app + Postgres + MailHog |
-| **AWS ECS Fargate** (app) + **Render** (Postgres) | ✅ Validado, no ar | Ver abaixo |
-| Render (aplicação completa, plano free) | ⚠️ Parcial | Banco em produção (usado pela AWS); deploy do serviço web completo não se sustentou — detalhes abaixo |
-| Azure App Service | 📄 Documentado, não executado | Guia completo em `docs/deploy-azure.md` |
+| Aplicação (API + Swagger) | AWS ECS Fargate | `http://18.231.160.214:8080/swagger-ui/index.html` |
+| Banco de dados (PostgreSQL) | Render (Postgres gerenciado) | Acesso externo via `sslmode=require`, configurado na task definition da AWS |
+| E-mails de notificação (ambiente local/dev) | MailHog | `http://localhost:8025` |
 
-### Topologia em produção: AWS + Render
+A aplicação roda em um cluster ECS Fargate na AWS e se conecta ao banco PostgreSQL gerenciado pelo Render através da internet, com conexão criptografada. Localmente, o Docker Compose sobe a aplicação, o banco e o MailHog (que captura os e-mails de confirmação, cancelamento e lembrete enviados pela aplicação durante o desenvolvimento, sem a necessidade de um servidor SMTP real).
 
-A aplicação roda em um cluster ECS Fargate na AWS (sem Load Balancer — a task recebe IP público direto), conectada a um banco Postgres gerenciado no Render através da internet, com conexão criptografada (`sslmode=require`). É uma arquitetura deliberadamente distribuída entre dois provedores: o Postgres do Render já estava em produção e funcionando corretamente, então em vez de duplicar o banco na AWS, a aplicação foi apontada para ele — o mesmo padrão de qualquer aplicação real que consome um banco gerenciado externo.
-
-Passo a passo completo em `docs/deploy-aws.md`. Resumo do fluxo:
-
-1. Build da imagem Docker e push para o ECR.
-2. Task definition (`infra/aws/task-definition.json`) aponta `SPRING_DATASOURCE_URL` para o hostname externo do Postgres no Render, com `sslmode=require`.
-3. Cluster + serviço Fargate, IP público liberado só na porta 8080.
-4. Health check em `/actuator/health`.
-
-### Por que o deploy completo no Render (plano free) não se sustentou
-
-Na tentativa de subir a aplicação inteira (app + banco) só no Render, o serviço web consistentemente ultrapassava a janela de health check do Render durante o boot. O diagnóstico, em ordem:
-
-1. **Primeira hipótese, correta parcialmente: porta errada.** A aplicação sempre subia fixa na porta 8080, mas o Render (para serviços Docker) injeta uma variável `PORT` dinâmica (nesse caso `10000`) e faz o health check nela. Corrigido lendo `server.port: ${PORT:8080}` — necessário, mas não suficiente.
-2. **Segunda hipótese, descartada: falta de memória.** O padrão de logs (múltiplos `HikariPool - Shutdown initiated` em sequência) sugeria um container sendo reiniciado por OOM. Reduzir o heap da JVM (`-Xmx256m` a `-Xmx400m`, testado em ambas as direções) não teve efeito mensurável no tempo de boot — descartando memória como causa.
-3. **Causa real: CPU compartilhada/limitada do plano free.** O boot local leva ~11s; no Render, entre 60 e 68 segundos — o mesmo processo, ~6x mais lento, consistente com CPU throttled. `spring.main.lazy-initialization=true` (criar beans sob demanda em vez de todos no boot) cortou parte do tempo, mas não o suficiente para ficar dentro da janela de health check do Render.
-
-A solução prática foi separar as responsabilidades: manter o Postgres no Render (onde já funcionava bem — bancos de dados são menos sensíveis a esse tipo de throttling que uma JVM inteira subindo) e mover a aplicação para a AWS, que não tem essa limitação de CPU no Fargate. Essa investigação está detalhada, com os logs reais de cada tentativa, em `docs/deploy-free-tier.md`.
+Passo a passo completo de configuração e deploy em `docs/deploy-aws.md`. Guias adicionais para Azure (`docs/deploy-azure.md`) e para o plano gratuito do Render (`docs/deploy-free-tier.md`) também estão disponíveis.
 
 ---
 
@@ -225,7 +205,7 @@ Todas as classes de domínio, casos de uso, controllers e ports têm Javadoc de 
 
 O diretório [`postman/`](postman/) contém duas coleções do Postman com os mesmos 26 testes manuais dos fluxos principais do sistema — `booking-beleza.postman_collection.json` (local) e `booking-beleza-producao.postman_collection.json` (ambiente de produção na AWS) — prontas para importar e executar. Token e IDs (estabelecimento, profissional, serviço, agendamento) são capturados automaticamente entre requisições via scripts, sem necessidade de copiar valores manualmente.
 
-O documento [`postman/README.md`](postman/README.md) descreve a mesma sequência de testes de duas formas equivalentes:
+O documento [`postman/README.md`](postman/TESTES-MANUAIS-DA-API.md) descreve a mesma sequência de testes de duas formas equivalentes:
 
 - **Via Postman**: importação da coleção e execução em lote (`Run collection`) ou requisição por requisição.
 - **Via Swagger UI**: os mesmos passos reproduzidos manualmente em `/swagger-ui.html`, com os corpos de requisição prontos para copiar.
@@ -274,5 +254,5 @@ ESTAB_ID=$(curl -s -X POST localhost:8080/api/estabelecimentos -H "Authorization
 - **BDD** → `src/test/resources/features/agendamento.feature` (Gherkin em português) executado via Cucumber + `CucumberIT`, ponta a ponta contra a API real.
 - **CI** → `.github/workflows/ci.yml` roda build, testes unitários, `mvn verify` (integração + BDD + análise estática) e valida o `docker build`.
 - **Testes não funcionais** → `performance-tests/agendamento-load-test.js` (k6), até 100 VUs simultâneos, thresholds de p95 e taxa de erro.
-- **Deploy** → local via `docker-compose.yml` (validado); nuvem via AWS ECS Fargate + Postgres gerenciado no Render, validado e no ar (`docs/deploy-aws.md`); Azure App Service documentado em `docs/deploy-azure.md`; investigação completa da tentativa de deploy 100% gratuito em `docs/deploy-free-tier.md`.
+- **Deploy** → local via `docker-compose.yml`; nuvem via AWS ECS Fargate (aplicação) + Postgres gerenciado no Render (banco), em produção — ver `docs/deploy-aws.md`; guia adicional para Azure App Service em `docs/deploy-azure.md`.
 - **Documentação técnica** → Swagger/OpenAPI (`/swagger-ui.html`) + `docs/relatorio-tecnico.md` (tecnologias, desafios e soluções, ênfase em Clean Architecture).
